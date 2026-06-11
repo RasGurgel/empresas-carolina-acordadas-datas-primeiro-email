@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Informantes — IBGE Ananindeua</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #181c26;
+    --surface2: #1e2333;
+    --border: #2a3050;
+    --accent: #3b82f6;
+    --text: #e2e8f0;
+    --text2: #94a3b8;
+    --text3: #64748b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* ETAPA 1: sem overflow-x: hidden em nenhum ancestral */
+  html { width: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 14px;
+    -webkit-text-size-adjust: 100%;
+    width: 100%;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 20px;
+  }
+  header h1 { font-size: 15px; font-weight: 700; line-height: 1.3; }
+  header h1 span { color: var(--accent); }
+  header p { font-size: 11px; color: var(--text3); margin-top: 4px; line-height: 1.5; }
+
+  /* ── TABS ── */
+  .tabs {
+    display: flex;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .tab {
+    flex: 1;
+    padding: 13px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text3);
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    text-align: center;
+    white-space: nowrap;
+    user-select: none;
+    transition: color .2s, border-color .2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ── CONTAINER ── */
+  /* ETAPA 1: sem overflow-x: hidden aqui */
+  .container { padding: 16px; max-width: 900px; margin: 0 auto; }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* ── SUMMARY GRID (ETAPA 3) ── */
+  /* Desktop: flex horizontal com scroll */
+  .summary-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+    margin-bottom: 16px;
+    /* ETAPA 2: overflow: clip não bloqueia scroll de filhos */
+    /* mas aqui usamos overflow-x: auto mesmo, pois é o próprio container */
+  }
+  .summary-wrap::-webkit-scrollbar { height: 4px; }
+  .summary-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .summary-grid {
+    display: flex;
+    gap: 8px;
+    width: max-content; /* garante que não quebre linha e não corte */
+    padding-bottom: 4px;
+  }
+
+  /* Mobile: vira grade de colunas fixas, tudo visível sem scroll */
+  @media (max-width: 600px) {
+    .summary-wrap {
+      overflow-x: visible; /* não precisa de scroll: vira grid */
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      width: 100%;         /* ocupa largura total */
+      gap: 6px;
+    }
+  }
+
+  .sum-pill {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 10px;
+    font-size: 10px;
+    color: var(--text2);
+    white-space: nowrap;
+    text-align: center;
+    min-width: 0;
+  }
+  .sum-pill strong {
+    color: var(--text);
+    font-size: 17px;
+    display: block;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  /* No mobile os pills do grid podem quebrar a data em duas linhas */
+  @media (max-width: 600px) {
+    .sum-pill {
+      white-space: normal;
+      word-break: break-word;
+      font-size: 9px;
+      padding: 7px 6px;
+    }
+    .sum-pill strong { font-size: 15px; }
+  }
+
+  /* ── GROUP HEADER ── */
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 2px;
+    padding: 12px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    user-select: none;
+    transition: background .15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .section-header:hover { background: var(--surface2); }
+  .section-header:active { background: var(--surface2); }
+
+  .date-badge {
+    background: var(--accent);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 5px 12px;
+    border-radius: 20px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .count-badge {
+    font-size: 11px;
+    color: var(--text3);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 20px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .toggle { margin-left: auto; color: var(--text3); font-size: 18px; line-height: 1; flex-shrink: 0; }
+
+  /* ── GROUP WRAP ── */
+  .group-wrap { margin-bottom: 12px; }
+  .group-table {
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    overflow: hidden;
+  }
+  .group-table.collapsed { display: none; }
+
+  /* ── TABELA DESKTOP ── */
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th {
+    background: var(--surface2);
+    color: var(--text3);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    padding: 9px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+  }
+  td { padding: 9px 14px; border-bottom: 1px solid var(--border); color: var(--text2); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface2); }
+
+  .num { color: var(--text3); font-size: 11px; width: 30px; }
+  .razao { color: var(--text); font-weight: 500; }
+  .cnpj { color: var(--text3); font-size: 11px; font-family: monospace; white-space: nowrap; }
+  .badge-date {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text2);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  /* ── CARDS MOBILE ── */
+  @media (max-width: 600px) {
+    header h1 { font-size: 14px; }
+    .container { padding: 12px; }
+
+    table, thead, tbody, th, td, tr { display: block; }
+    thead { display: none; }
+
+    tr {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 14px;
+    }
+    tr:last-child { border-bottom: none; }
+    tr:hover { background: var(--surface); }
+
+    td.num { display: none; }
+    td { padding: 2px 0; border: none; font-size: 13px; }
+    td.razao {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      padding-bottom: 5px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 5px;
+    }
+    td.cnpj { font-size: 11px; color: var(--text3); padding-top: 4px; }
+    td:last-child { padding-top: 6px; }
+    td:last-child::before {
+      content: attr(data-label);
+      display: block;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--text3);
+      margin-bottom: 3px;
+    }
+
+    .date-badge { font-size: 11px; padding: 4px 10px; }
+    .count-badge { font-size: 10px; padding: 3px 8px; }
+    .section-header { padding: 11px 12px; gap: 8px; }
+  }
+
+  /* ── CORES DOS GRUPOS ── */
+  .c0  { border-left: 3px solid #3b82f6; }
+  .c1  { border-left: 3px solid #8b5cf6; }
+  .c2  { border-left: 3px solid #06b6d4; }
+  .c3  { border-left: 3px solid #10b981; }
+  .c4  { border-left: 3px solid #84cc16; }
+  .c5  { border-left: 3px solid #f59e0b; }
+  .c6  { border-left: 3px solid #f97316; }
+  .c7  { border-left: 3px solid #ef4444; }
+  .c8  { border-left: 3px solid #ec4899; }
+  .c9  { border-left: 3px solid #a855f7; }
+  .c10 { border-left: 3px solid #14b8a6; }
+  .c11 { border-left: 3px solid #eab308; }
+  .c12 { border-left: 3px solid #64748b; }
+
+  .db0  { background: #1d3a5f22; }
+  .db1  { background: #3b1f6022; }
+  .db2  { background: #0e404822; }
+  .db3  { background: #0e3a2822; }
+  .db4  { background: #2a3a0e22; }
+  .db5  { background: #3a2a0e22; }
+  .db6  { background: #3a1e0e22; }
+  .db7  { background: #3a0e0e22; }
+  .db8  { background: #3a0e2a22; }
+  .db9  { background: #2a0e3a22; }
+  .db10 { background: #0e3a3622; }
+  .db11 { background: #3a300e22; }
+  .db12 { background: #1a202c22; }
+
+  footer {
+    text-align: center;
+    padding: 20px 16px;
+    font-size: 11px;
+    color: var(--text3);
+    border-top: 1px solid var(--border);
+    margin-top: 8px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Pesquisas Econômicas — <span>Informantes</span></h1>
+  <p>IBGE · Agência Ananindeua/PA · Carolina Lima Guimarães · 113 empresas · 1º Email enviado</p>
+</header>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('entrega')">📨 Data da Entrega</div>
+  <div class="tab" onclick="switchTab('abordagem')">📋 Data da Abordagem</div>
+</div>
+
+<div class="container">
+  <div class="panel active" id="panel-entrega">
+    <div class="summary-wrap"><div class="summary-grid" id="summary-entrega"></div></div>
+    <div id="grupos-entrega"></div>
+  </div>
+  <div class="panel" id="panel-abordagem">
+    <div class="summary-wrap"><div class="summary-grid" id="summary-abordagem"></div></div>
+    <div id="grupos-abordagem"></div>
+  </div>
+</div>
+
+<footer>IBGE — Agência Ananindeua/PA · Pesquisas Econômicas 2025</footer>
+
+<script>
+// [cnpj, razaoSocial, dataAbordagem, dataEntrega]
+const empresas = [
+  ["07600239/0001-41","PIPA COMERCIO DE PRODUTOS VETERINARIOS LTDA","20/05/2026","09/06/2026"],
+  ["17964120/0001-01","ELETROGERAL DISTRIBUIDORA DE PECAS LTDA","26/05/2026","26/05/2026"],
+  ["10627815/0001-59","AGROMAX EQUIPAMENTOS AGRICOLAS LTDA","20/05/2026","21/05/2026"],
+  ["03786121/0001-07","CARVALHO & BITTENCOURT LTDA","20/05/2026","21/05/2026"],
+  ["02114575/0001-60","NOVA AUTOPECAS LTDA","20/05/2026","21/05/2026"],
+  ["19094583/0001-95","OLIVEIRA & ARAUJO MATERIAIS DE CONSTRUCAO E SERVICOS LTD","26/05/2026","26/05/2026"],
+  ["30287887/0001-01","MERCANTIL DIAS COMERCIO DE PRODUTOS ALIMENTICIOS LTDA","09/06/2026","10/06/2026"],
+  ["32741997/0001-27","M S VIANELLO COMERCIO DE ALIMENTOS LTDA","20/05/2026","10/06/2026"],
+  ["07216913/0001-99","LEYDIANNE DE LIMA & DOURACI DE LIMA LTDA","21/05/2026","26/05/2026"],
+  ["24783124/0001-59","FIBRA SERRAS LTDA","09/06/2026","10/06/2026"],
+  ["07772337/0001-66","FEMABRA COMERCIO DE FERRAMENTAS E MAQUINAS LTDA","20/05/2026","21/05/2026"],
+  ["06298912/0001-78","R C L C REIS EPP LTDA","20/05/2026","21/05/2026"],
+  ["18596470/0001-25","AVANTY DISTRIBUIDORA DE CAMINHOES LTDA","26/05/2026","26/05/2026"],
+  ["09014934/0001-57","MAJOH COMERCIO E DISTRIBUICAO DE ALIMENTOS LTDA","20/05/2026","21/05/2026"],
+  ["26823978/0001-47","TVL FOODS E DISTRIBUICAO LTDA","24/04/2026","10/06/2026"],
+  ["22084301/0001-83","ANDRADE & NUNES COMERCIO DE CONFECCOES LTDA","08/06/2026","09/06/2026"],
+  ["22966557/0001-14","ANANINDEUA COMERCIO DE TECIDOS LTDA","23/04/2026","23/04/2026"],
+  ["21931398/0001-50","PANIFICADORA GARSSIS LTDA","08/06/2026","09/06/2026"],
+  ["26644730/0001-19","PB FARMA LTDA","09/06/2026","10/06/2026"],
+  ["27159122/0001-81","SUPERMERCADO SAO JOSE COMERCIO DE ALIMENTOS LTDA","09/06/2026","10/06/2026"],
+  ["22486965/0001-79","FREITAS GOMES COMERCIAL DE ALIMENTOS LTDA","08/06/2026","09/06/2026"],
+  ["09164663/0001-16","M DA SILVA PANTOJA","20/05/2026","21/05/2026"],
+  ["07723218/0001-13","DN DISTRIBUIDORA E REPRESENTACOES LTDA","20/05/2026","21/05/2026"],
+  ["08632253/0001-90","CROI COMPUTADORES LTDA","20/05/2026","21/05/2026"],
+  ["10659809/0001-83","MERCANTIL BENEVIDES LTDA","22/05/2026","23/05/2026"],
+  ["10597693/0001-03","K L MAIA DE OLIVEIRA LTDA","20/05/2026","21/05/2026"],
+  ["07868912/0001-29","GONCALVES & DIAS LTDA","20/05/2026","21/05/2026"],
+  ["08836562/0001-81","BENEVIDES MAGAZINE COM DE MOVEIS E ELETRODOMESTICOS","20/05/2026","21/05/2026"],
+  ["07621734/0001-37","MARTINS COMERCIO DE PRODUTOS ALIMENTICIOS LTDA","20/05/2026","21/05/2026"],
+  ["21581445/0001-82","ALTAMED DISTRIBUIDORA DE MEDICAMENTOS LTDA","26/05/2026","26/05/2026"],
+  ["23671550/0001-38","H T COMERCIO DE PETROLEO LTDA","16/04/2026","22/04/2026"],
+  ["29120609/0002-67","ISAIAS ATACADO E VAREJO LTDA","09/06/2026","10/06/2026"],
+  ["05024583/0001-04","MONACO DIESEL LTDA","20/05/2026","21/05/2026"],
+  ["04999325/0001-80","HYTEC AUTOMACAO LTDA","20/05/2026","21/05/2026"],
+  ["06035543/0001-20","FRIBEL INDUSTRIA E COMERCIO DE ALIMENTOS LTDA","20/05/2026","21/05/2026"],
+  ["04978201/0001-19","MOTOBEL MOTORES DE BELEM LTDA","20/05/2026","21/05/2026"],
+  ["06945995/0001-40","GP PETROLEO COMERCIO DE COMBUSTIVEIS LTDA","20/05/2026","21/05/2026"],
+  ["03267120/0001-48","SANTA MARTA DISTRIBUIDORA E TRANSPORTES DE CARGAS LTDA","28/04/2026","21/05/2026"],
+  ["08839020/0001-62","BIG LAR MAGAZINE COM DE MOVEIS E ELETRODOMESTICOS L","20/05/2026","21/05/2026"],
+  ["08900798/0001-30","EURO COMERCIO DE PECAS E LUBRIFICANTES LTDA","20/05/2026","21/05/2026"],
+  ["07143047/0001-53","M U N REIS COMERCIO DE TINTAS LTDA","20/05/2026","21/05/2026"],
+  ["11384025/0001-52","A C FARIAS COMERCIO DE PECAS E SERVICOS LTDA","22/05/2026","23/05/2026"],
+  ["31174123/0001-72","L.C.P DE SOUSA LTDA","09/06/2026","10/06/2026"],
+  ["04949905/0001-63","F CARDOSO E CIA LTDA","20/05/2026","21/05/2026"],
+  ["04509490/0001-07","M W DE SENA FRANCA","20/05/2026","21/05/2026"],
+  ["04474059/0001-72","S B IND COMERCIO E EXPORTACAO DE MADEIRAS LTDA","20/05/2026","21/05/2026"],
+  ["03347431/0001-17","AMERICAN FARMA LTDA","28/04/2026","21/05/2026"],
+  ["05318880/0001-62","LOJA DAS MANGUEIRAS LTDA","23/04/2026","23/04/2026"],
+  ["03074354/0001-79","LIDER DISTRIBUIDORA DE BEBIDAS LTDA","28/04/2026","21/05/2026"],
+  ["03555314/0001-49","T T LTDA","20/05/2026","21/05/2026"],
+  ["03855702/0001-45","J REIS DA ROCHA COMERCIO - ME","20/05/2026","21/05/2026"],
+  ["04082321/0001-33","ACO BELEM COMERCIAL LTDA","20/05/2026","21/05/2026"],
+  ["04874416/0001-90","FLUMINENSE TRANSPORTADOR REVENDEDOR RETALHISTA LTDA","20/05/2026","21/05/2026"],
+  ["13426235/0001-91","FORMOSA DISTRIBUICAO DE MOTOCICLETAS LTDA","22/05/2026","23/05/2026"],
+  ["18548319/0001-11","MONACO VEICULOS LTDA","26/05/2026","26/05/2026"],
+  ["15076273/0001-97","TRACSUL EQUIPAMENTOS LTDA","26/05/2026","26/05/2026"],
+  ["17359400/0001-90","UNIQUE COMERCIO DE AUTOMOVEIS LTDA","26/05/2026","26/05/2026"],
+  ["16707998/0001-07","W. R. DE OLIVEIRA SILVA LTDA","26/05/2026","26/05/2026"],
+  ["31301946/0001-11","LUVI IMPLEMENTOS LTDA","09/06/2026","10/06/2026"],
+  ["32848841/0001-40","C.P.C OLIVEIRA COMERCIO DE COSMETICOS E PERFUMARIA LT","09/06/2026","10/06/2026"],
+  ["31663281/0001-96","AGUAS BRANCAS COMERCIO ATACADISTA DE ARMARINHO EM GE","09/06/2026","10/06/2026"],
+  ["03598128/0001-97","COMERCIAL VIGILENGA LTDA","20/05/2026","21/05/2026"],
+  ["33115752/0001-57","F T COMERCIO DE LUBRIFICANTES E FILTROS LTDA","09/06/2026","10/06/2026"],
+  ["83208140/0001-87","J C MARANHAO COMERCIO E REPRESENTACOES LTDA","20/05/2026","21/05/2026"],
+  ["20992278/0001-08","T L W COMERCIO TRANSPORTE DE CARGAS E LOGISTICA LTD","26/05/2026","26/05/2026"],
+  ["14643253/0001-98","BR ELETRON PARA COMERCIAL LTDA","22/05/2026","23/05/2026"],
+  ["17159083/0001-69","V A DA SILVA COMERCIO DE ARTIGOS DE VESTUARIO LTDA","26/05/2026","26/05/2026"],
+  ["23944869/0001-90","ABA COMERCIO DE ALIMENTOS LTDA","22/04/2026","22/04/2026"],
+  ["22924203/0001-07","EBD NORDESTE COMERCIO LTDA","08/06/2026","09/06/2026"],
+  ["14698061/0001-89","S J ANANINDEUA COM DE ARTIGOS DO VESTUARIO E DO SEX SHO","26/05/2026","26/05/2026"],
+  ["16980257/0001-97","EL SHADAY COMERCIO DE ALIMENTOS LTDA","26/05/2026","26/05/2026"],
+  ["20890424/0001-86","LOCAL COMERCIO E SERVICOS DE TRANSPORTES LTDA","24/04/2026","25/04/2026"],
+  ["13424484/0001-48","SAO PAULO DISTRIBUIDORA DE MATERIAIS DE CONSTRUCAO LTDA","22/05/2026","23/05/2026"],
+  ["83577494/0001-07","MOTOBEL VEICULOS LTDA","10/06/2026","11/06/2026"],
+  ["43215774/0001-42","TSP REPRESENTACAO E BROKER LTDA","10/06/2026","11/06/2026"],
+  ["44877484/0001-27","PIRES E URSEN DISTRIBUIDORA DE ALIMENTOS LTDA","10/06/2026","11/06/2026"],
+  ["01716187/0001-97","DISTRIBUIDORA GARCIA LTDA","28/04/2026","21/05/2026"],
+  ["02164629/0001-00","OLINDA DISTRIBUICAO E COM. LTDA","20/05/2026","21/05/2026"],
+  ["04497310/0001-14","LOJA DO BORRACHEIRO COMERCIAL DE ARTIGOS DE BORRACHA LT","20/05/2026","21/05/2026"],
+  ["83835454/0001-00","M. P. MACAMBIRA","20/05/2026","21/05/2026"],
+  ["45048320/0001-50","META AUTO PECAS LTDA","10/06/2026","11/06/2026"],
+  ["43026690/0001-60","YOLETE M G ALVES","10/06/2026","11/06/2026"],
+  ["44764457/0001-48","URSEN ALIMENTOS LTDA","10/06/2026","11/06/2026"],
+  ["15679405/0001-75","R. SANTOS CONSTRUCOES LTDA","21/05/2026","21/05/2026"],
+  ["24562623/0001-16","AMAZONIA OLIVEIRA MATERIAL DE CONSTRUCAO LTDA","21/05/2026","29/05/2026"],
+  ["02343427/0001-18","SELETO ENGENHARIA LTDA","28/04/2026","21/05/2026"],
+  ["11027186/0001-99","MEGA BRASIL COMERCIO E SERVICOS DE CONSTRUCOES LTDA","21/05/2026","21/05/2026"],
+  ["48223864/0001-07","BOM PRECO CASA E CONSTRUCAO LTDA","10/06/2026","11/06/2026"],
+  ["40070881/0001-31","REVEMAR COMERCIO E DISTRIBUIDORA DE AUTOMOVEIS LTDA","10/06/2026","11/06/2026"],
+  ["38135427/0001-70","CLAUDETE GOMES DA SILVA BRAZ E CIA LTDA","10/06/2026","11/06/2026"],
+  ["35252092/0001-81","SUPERMERCADO ELDORADO LTDA","10/06/2026","11/06/2026"],
+  ["63830889/0001-54","TRANSPORTADORA AMAZONIA DIESEL LTDA","10/06/2026","11/06/2026"],
+  ["36748710/0001-41","DE MARCHI BELEM COMERCIO DE ALIMENTOS LT","10/06/2026","11/06/2026"],
+  ["34249103/0001-01","SABEL COMERCIO DE VEICULOS LTDA","10/06/2026","11/06/2026"],
+  ["18665556/0001-62","DRECON CONSTRUTORA LTDA","26/05/2026","26/05/2026"],
+  ["15316859/0001-81","CONSTRULIBER SERVICOS DE TERRAPLENAGEM LTDA","26/05/2026","26/05/2026"],
+  ["40195862/0001-31","RESIDENCIAL INDEPENDENCIA SPE LTDA","10/06/2026","11/06/2026"],
+  ["21062558/0001-71","TIBE COM E SERVICOS DE CONSTRUCAO CIVIL LTDA","21/05/2026","09/06/2026"],
+  ["24589876/0001-83","DAX CONSTRUCAO E PINTURAS LTDA","21/05/2026","21/05/2026"],
+  ["11895525/0001-59","CONSTRUTORA OURO MINAS COMERCIO CONSTRUCOES E MONTAGEN","22/05/2026","26/05/2026"],
+  ["03990577/0001-86","M2 CONSTRUTORA E INCORPORADORA LTDA","20/05/2026","21/05/2026"],
+  ["17921246/0001-07","W W P NUNES LTDA","26/05/2026","09/06/2026"],
+  ["22818171/0001-65","INOV ENGENHARIA LTDA","21/05/2026","26/05/2026"],
+  ["39468581/0001-26","BOSQUE DAS ORQUIDEAS EMPREENDIMENTO IMOBILIARIO SPE LTD","10/06/2026","11/06/2026"],
+  ["10657665/0001-26","SERVCOM AUTOMACAO INDUSTRIAL LTDA","21/05/2026","26/05/2026"],
+  ["07128966/0001-58","VIASUL SINALIZACAO LTDA","20/05/2026","21/05/2026"],
+  ["04736790/0001-29","SERVIMINAS SERVICOS DE CONSTRUCAO LTDA","20/05/2026","21/05/2026"],
+  ["08489964/0001-57","TDL SERVICOS E CONSTRUCOES LTDA","21/05/2026","21/05/2026"],
+  ["18972318/0001-08","PIA CONSTRUCOES E TRANSPORTES LTDA","21/05/2026","02/06/2026"],
+  ["17947832/0001-12","CONSTRUMEC CONSTRUCOES E INSTALACOES ELETRICAS MECNICAS","26/05/2026","26/05/2026"],
+  ["29198671/0001-90","CONSTRUTORA UNIAO PONTES LTDA","09/06/2026","10/06/2026"],
+  ["21818161/0001-67","TECNOFIRE COMERCIO E SERVICOS DE COMBATE A INCENDIO LTD","08/06/2026","09/06/2026"],
+  ["32135776/0001-05","CHARDONNAY EMPREENDIMENTOS IMOBILIARIOS SPE LTDA","09/06/2026","10/06/2026"],
+  ["15268608/0001-79","E N DA NATIVIDADE SERVICOS DE CONSTRUCOES","21/05/2026","26/05/2026"],
+];
+
+const colors  = ['c0','c1','c2','c3','c4','c5','c6','c7','c8','c9','c10','c11','c12'];
+const dbColors = ['db0','db1','db2','db3','db4','db5','db6','db7','db8','db9','db10','db11','db12'];
+
+function parseDate(s) {
+  const [d, m, y] = s.split('/');
+  return new Date(+y, +m - 1, +d);
+}
+
+function groupBy(field) {
+  const map = {};
+  empresas.forEach(e => {
+    const key = e[field];
+    if (!map[key]) map[key] = [];
+    map[key].push(e);
+  });
+  return Object.entries(map).sort((a, b) => parseDate(a[0]) - parseDate(b[0]));
+}
+
+function renderGroup(containerId, summaryId, field) {
+  const groups     = groupBy(field);
+  const container  = document.getElementById(containerId);
+  const summaryEl  = document.getElementById(summaryId);
+  container.innerHTML = '';
+  summaryEl.innerHTML = '';
+
+  // Pills do resumo
+  groups.forEach(([date, list]) => {
+    const pill = document.createElement('div');
+    pill.className = 'sum-pill';
+    pill.innerHTML = `<strong>${list.length}</strong>${date}`;
+    summaryEl.appendChild(pill);
+  });
+
+  const otherLabel = field === 3 ? 'Data Abordagem' : 'Data Entrega';
+  const otherField = field === 3 ? 2 : 3;
+
+  groups.forEach(([date, list], i) => {
+    const ci = i % colors.length;
+    const wrap = document.createElement('div');
+    wrap.className = 'group-wrap';
+
+    const hdr = document.createElement('div');
+    hdr.className = `section-header ${dbColors[ci]} ${colors[ci]}`;
+    hdr.innerHTML = `
+      <span class="date-badge">${date}</span>
+      <span class="count-badge">${list.length} empresa${list.length > 1 ? 's' : ''}</span>
+      <span class="toggle">▾</span>`;
+
+    const tableWrap = document.createElement('div');
+    tableWrap.className = 'group-table';
+
+    let rows = '';
+    list.forEach((e, j) => {
+      rows += `<tr>
+        <td class="num">${j + 1}</td>
+        <td class="cnpj">${e[0]}</td>
+        <td class="razao">${e[1]}</td>
+        <td data-label="${otherLabel}"><span class="badge-date">${e[otherField]}</span></td>
+      </tr>`;
+    });
+
+    tableWrap.innerHTML = `<table>
+      <thead><tr>
+        <th>#</th><th>CNPJ</th><th>Razão Social</th><th>${otherLabel}</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+
+    hdr.addEventListener('click', () => {
+      const col = tableWrap.classList.toggle('collapsed');
+      hdr.querySelector('.toggle').textContent = col ? '▸' : '▾';
+    });
+
+    wrap.appendChild(hdr);
+    wrap.appendChild(tableWrap);
+    container.appendChild(wrap);
+  });
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelector(`[onclick="switchTab('${name}')"]`).classList.add('active');
+  document.getElementById(`panel-${name}`).classList.add('active');
+}
+
+renderGroup('grupos-entrega',   'summary-entrega',   3);
+renderGroup('grupos-abordagem', 'summary-abordagem', 2);
+</script>
+</body>
+</html>
